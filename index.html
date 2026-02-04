@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데미지 계산기 (완성본)</title>
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f0f2f5;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h2 { margin-bottom: 20px; color: #333; }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 15px;
+            justify-content: center;
+            max-width: 1200px;
+        }
+
+        .box {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            width: 200px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .box h4 {
+            margin: 0 0 10px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+            color: #555;
+            text-align: center;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .input-group input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: right; 
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            background-color: #f7fbff;
+        }
+
+        .result-box {
+            margin-top: 30px;
+            padding: 20px 40px;
+            background-color: #333;
+            color: white;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            position: sticky;
+            bottom: 20px;
+        }
+
+        .result-box h3 { margin: 0; font-size: 1.2rem; opacity: 0.8; }
+        .result-box span { display: block; font-size: 2.5rem; font-weight: bold; margin-top: 10px; color: #ffeb3b; }
+    </style>
+</head>
+<body>
+
+    <h2>🛠️ 데미지 계산기</h2>
+
+    <div class="container" id="메인화면"></div>
+
+    <div class="result-box">
+        <h3>최종 데미지</h3>
+        <span id="결과">0.00</span>
+    </div>
+
+<script>
+    const 설정 = [
+        {
+            제목: "1. 스킬 위력",
+            항목: ['기본위력', '코인위력', '코인수', '최종위력']
+        },
+        {
+            제목: "2. 피해량",
+            항목: ['피해량증가'] 
+        },
+        {
+            제목: "3. 내성",
+            항목: ['공렙', '방렙', '물리내성', '죄악내성', '크리티컬', '합횟수']
+        },
+        {
+            제목: "4. 기타",
+            항목: ['가중치']
+        }
+    ];
+
+    const 메인화면 = document.getElementById('메인화면');
+    const 전체ID리스트 = []; 
+
+    설정.forEach((그룹) => {
+        let html = `<div class="box"><h4>${그룹.제목}</h4>`;
+        
+        그룹.항목.forEach((이름) => {
+            let placeholder = (이름.includes('내성') || 이름 === '가중치') ? '1' : '0';
+            
+            html += `
+                <div class="input-group">
+                    <label>${이름}</label>
+                    <input type="number" id="${이름}" placeholder="${placeholder}">
+                </div>
+            `;
+            전체ID리스트.push(이름);
+        });
+
+        html += `</div>`;
+        메인화면.innerHTML += html;
+    });
+
+    전체ID리스트.forEach((아이디) => {
+        document.getElementById(아이디).addEventListener('input', 계산로직);
+    });
+
+    function 계산로직() {
+        let data = {};
+        전체ID리스트.forEach((아이디) => {
+            let 값 = Number(document.getElementById(아이디).value);
+            if (값 === 0 && document.getElementById(아이디).value === "") {
+                if (아이디.includes('내성') || 아이디 === '가중치') 값 = 1;
+            }
+            data[아이디] = 값;
+        });
+
+        let 기본 = data['기본위력'];
+        let 코인 = data['코인위력'];
+        let 코인수 = data['코인수'];
+        let 최종위력 = data['최종위력'];
+        
+        let 물리 = data['물리내성'];
+        let 죄악 = data['죄악내성'];
+        let 공렙 = data['공렙'];
+        let 방렙 = data['방렙'];
+        let 크리 = data['크리티컬']; 
+        let 합 = data['합횟수'];
+        
+        let 피증 = data['피해량증가'];
+        let 가중치 = data['가중치'];
+
+        let 물리계산 = (Math.abs(물리 - 1) + (3 * (물리 - 1)) / 4);
+        
+        let 죄악계산 = (Math.abs(죄악 - 1) + (3 * (죄악 - 1)) / 4);
+        
+        let 레벨차 = 공렙 - 방렙;
+        let 레벨계산 = 0;
+        if (Math.abs(레벨차) + 25 !== 0) { 
+            레벨계산 = 레벨차 / (Math.abs(레벨차) + 25);
+        }
+
+        let 계수총합 = 1 + (물리계산 + 죄악계산 + 레벨계산 + 크리 + (합 * 0.03));
+        
+        if (피증 !== 0) {
+            피해량 = 1+(피증 / 100); 
+        } else {
+            피해량 = 1
+        }
+
+        let 스킬위력 = 0;
+
+        for (let i = 1; i <= 코인수; i++) {
+            스킬위력 += 기본 + 최종위력 + (코인 * i);
+        }
+        let 최종결과 = 스킬위력 * 계수총합 * 피해량 * 가중치;
+
+        console.log("계수:", 계수총합, "위력:", 스킬위력, "피해량:", 피해량, "가중치:", 가중치); 
+        document.getElementById('결과').innerText = 최종결과.toFixed(2);
+    }
+</script>
+
+</body>
+</html>
